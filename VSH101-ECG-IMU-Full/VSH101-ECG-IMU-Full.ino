@@ -53,8 +53,6 @@
 #define HR_ABNORMAL_THRESHOLD 30        // 心率突變閾值
 #define DATA_TIMEOUT_MS       10000
 
-// 除錯：印出前 N 筆重組封包的 HEX（0=關閉）
-#define DEBUG_HEX_FIRST_N     20
 
 /* ============================================================
  *  協定常數
@@ -242,22 +240,7 @@ float safeReadFloat(const uint8_t* d) {
 }
 uint32_t readU32(const uint8_t* d) { uint32_t v; memcpy(&v,d,4); return v; }
 uint16_t readU16(const uint8_t* d) { uint16_t v; memcpy(&v,d,2); return v; }
-int16_t  readS16(const uint8_t* d) { int16_t  v; memcpy(&v,d,2); return v; }
 
-/* ============================================================
- *  HEX 傾印
- * ============================================================ */
-
-void printHex(const uint8_t* d, size_t len, const char* label) {
-  Serial.printf("[HEX][%s] %d bytes:\n", label, (int)len);
-  for (size_t i=0; i<len; i++) {
-    if (i>0 && i%32==0) Serial.println();
-    if (d[i]<0x10) Serial.print("0");
-    Serial.print(d[i], HEX);
-    Serial.print(" ");
-  }
-  Serial.println("\n");
-}
 
 /* ============================================================
  *  從 Info 區解析所有欄位
@@ -447,52 +430,6 @@ void processRxBuffer() {
   uint8_t parseBuf[RX_BUF_SIZE];
   memcpy(parseBuf, rxBuf, len);
   rxBufLen = 0;
-
-  // 除錯 HEX — 印出標頭 + Info 區
-  #if DEBUG_HEX_FIRST_N > 0
-  {
-    static int dbgCnt = 0;
-    if (dbgCnt < DEBUG_HEX_FIRST_N) {
-      dbgCnt++;
-      // 印出標頭（前 8 bytes）
-      printHex(parseBuf, min(len, (size_t)8), "標頭");
-      // 若封包夠大，印出 Info 區（bytes 464-575）
-      if (len >= TYPE1_TOTAL) {
-        Serial.printf("[HEX][Info區] offset %d-%d:\n",
-                      ACK_HEADER_SIZE + TYPE1_ECG_SIZE,
-                      ACK_HEADER_SIZE + TYPE1_ECG_SIZE + TYPE1_INFO_SIZE - 1);
-        printHex(&parseBuf[ACK_HEADER_SIZE + TYPE1_ECG_SIZE],
-                 TYPE1_INFO_SIZE, "Info");
-      }
-      // 印出關鍵欄位的原始值以供驗證（v6：全部使用 float 索引）
-      if (len >= TYPE1_TOTAL) {
-        const uint8_t* inf = &parseBuf[ACK_HEADER_SIZE + TYPE1_ECG_SIZE];
-        Serial.printf("  [v6 解析] InfoType=%.0f UTC=%.0f Temp=%.2f HR=%.1f LeadOff=%.0f\n",
-          safeReadFloat(&inf[INFO_INFOTYPE * 4]),
-          safeReadFloat(&inf[INFO_UTC * 4]),
-          safeReadFloat(&inf[INFO_TEMP * 4]),
-          safeReadFloat(&inf[INFO_HR * 4]),
-          safeReadFloat(&inf[INFO_LEADOFF * 4]));
-        Serial.printf("  [G-sensor] X=%.3f Y=%.3f Z=%.3f\n",
-          safeReadFloat(&inf[INFO_GSEN_X * 4]),
-          safeReadFloat(&inf[INFO_GSEN_Y * 4]),
-          safeReadFloat(&inf[INFO_GSEN_Z * 4]));
-        Serial.printf("  [電池] SOC=%.1f%% 剩餘=%.0f秒\n",
-          safeReadFloat(&inf[INFO_BATT_SOC * 4]),
-          safeReadFloat(&inf[INFO_BATT_SEC * 4]));
-        Serial.printf("  [心律不整] code=%.0f ts=%.0f\n",
-          safeReadFloat(&inf[INFO_ATR_CODE * 4]),
-          safeReadFloat(&inf[INFO_ATR_TS * 4]));
-        // 印出 ECG 區最後 16 bytes（確認 ECG 資料正確性）
-        printHex(&parseBuf[ACK_HEADER_SIZE + TYPE1_ECG_SIZE - 16], 16, "ECG末16B");
-        // 印出 Info 前 40 bytes（fInfo[0..9] 的原始 hex）
-        printHex(inf, 40, "Info[0-39](fInfo[0..9])");
-      }
-      Serial.printf("  重組長度=%d wId=%d 片段累計=%u\n\n",
-                    (int)len, currentWId, session.fragmentCount);
-    }
-  }
-  #endif
 
   parseAssembled(parseBuf, len);
 }
