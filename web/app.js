@@ -98,7 +98,13 @@ class BLEConnection {
 
   async write(data) {
     if (!this.rxChar) return;
-    await this.rxChar.writeValueWithResponse(data);
+    if (this._writing) throw new Error('GATT operation already in progress');
+    this._writing = true;
+    try {
+      await this.rxChar.writeValueWithResponse(data);
+    } finally {
+      this._writing = false;
+    }
   }
 }
 
@@ -155,6 +161,7 @@ class VSH101Protocol {
     this.timeoutCheckId = null;
     this.packetCount = 0;
 
+    this.restarting = false;
     this.onECGData = null;
     this.onInfoUpdate = null;
     this.onStatsUpdate = null;
@@ -192,29 +199,46 @@ class VSH101Protocol {
   }
 
   async sendRead() {
-    if (!this.measuring) return;
+    if (!this.measuring || this.restarting) return;
     const cmd = new Uint8Array(CMD_READ_TEMPLATE);
     cmd[8] = this.currentWId & 0xFF;
     cmd[9] = (this.currentWId >> 8) & 0xFF;
     try {
       await this.ble.write(cmd);
     } catch (e) {
-      if (this.onError) this.onError('READ 失敗: ' + e.message);
+      // Ignore write conflicts during normal operation
     }
   }
 
   async checkTimeout() {
-    if (!this.measuring) return;
+    if (!this.measuring || this.restarting) return;
     if (this.lastDataTime > 0 && (Date.now() - this.lastDataTime) > DATA_TIMEOUT_MS) {
+      this.restarting = true;
       if (this.onError) this.onError('資料超時，重啟測量...');
+
+      // Stop read interval to prevent GATT write conflicts
+      if (this.readIntervalId) { clearInterval(this.readIntervalId); this.readIntervalId = null; }
+
       try {
+        // Wait briefly for any in-flight GATT write to complete
+        await new Promise(r => setTimeout(r, 300));
         await this.ble.write(CMD_STOP);
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise(r => setTimeout(r, 500));
         await this.ble.write(CMD_START);
         this.currentWId = 0;
+        this.assembler.length = 0;
         this.lastDataTime = Date.now();
+
+        // Restart read interval
+        this.readIntervalId = setInterval(() => this.sendRead(), READ_INTERVAL_MS);
       } catch (e) {
         if (this.onError) this.onError('重啟失敗: ' + e.message);
+        // Retry: restart read interval anyway so it can recover
+        if (!this.readIntervalId && this.measuring) {
+          this.readIntervalId = setInterval(() => this.sendRead(), READ_INTERVAL_MS);
+        }
+      } finally {
+        this.restarting = false;
       }
     }
   }
