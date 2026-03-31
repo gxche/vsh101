@@ -1,0 +1,326 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', 'Noto Sans TC', sans-serif;
+  background: #0a0a0a;
+  color: #e0e0e0;
+  min-height: 100vh;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: #141414;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.header h1 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #00e676;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Status Badge */
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.status-badge.disconnected {
+  background: #4a1a1a;
+  color: #ff5252;
+}
+
+.status-badge.connecting {
+  background: #4a3a1a;
+  color: #ffc107;
+}
+
+.status-badge.connected {
+  background: #1a3a1a;
+  color: #00e676;
+}
+
+/* Buttons */
+.btn {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn-connect {
+  background: #1565c0;
+  color: #fff;
+}
+
+.btn-disconnect {
+  background: #b71c1c;
+  color: #fff;
+}
+
+.btn-start {
+  background: #2e7d32;
+  color: #fff;
+}
+
+.btn-stop {
+  background: #e65100;
+  color: #fff;
+}
+
+.btn:not(:disabled):hover {
+  opacity: 0.85;
+}
+
+/* Control Bar */
+.control-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: #111;
+  border-bottom: 1px solid #222;
+}
+
+.elapsed-label {
+  margin-left: auto;
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.elapsed-time {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 1rem;
+  color: #ffc107;
+}
+
+/* Dashboard Grid */
+.dashboard {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 12px 20px;
+}
+
+/* Panels */
+.panel {
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 8px 12px;
+  background: #1a1a1a;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+/* ECG Panel - full width */
+.panel-ecg {
+  grid-column: 1 / -1;
+}
+
+.panel-ecg canvas {
+  width: 100%;
+  height: 300px;
+  display: block;
+}
+
+/* Vital Signs */
+.vital-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 12px;
+}
+
+.vital-item {
+  text-align: center;
+}
+
+.vital-label {
+  font-size: 0.75rem;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.vital-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.vital-unit {
+  font-size: 0.7rem;
+  color: #666;
+}
+
+.vital-hr .vital-value {
+  font-size: 2rem;
+  color: #00e676;
+}
+
+/* Lead-off Indicator */
+.lead-ok {
+  color: #00e676;
+}
+
+.lead-off {
+  color: #ff5252;
+  animation: pulse-red 1s ease-in-out infinite;
+}
+
+@keyframes pulse-red {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Battery Bar */
+.battery-bar-container {
+  width: 100%;
+  height: 8px;
+  background: #2a2a2a;
+  border-radius: 4px;
+  margin: 6px 0 4px;
+  overflow: hidden;
+}
+
+.battery-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease, background-color 0.5s ease;
+  background: #00e676;
+}
+
+.battery-bar.low {
+  background: #ffc107;
+}
+
+.battery-bar.critical {
+  background: #ff5252;
+}
+
+/* HRV Table */
+.hrv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.hrv-table td {
+  padding: 6px 12px;
+  border-bottom: 1px solid #1e1e1e;
+}
+
+.hrv-table td:first-child {
+  color: #888;
+  font-weight: 600;
+  width: 70px;
+}
+
+.hrv-table td:nth-child(2) {
+  text-align: right;
+  font-family: 'Consolas', monospace;
+}
+
+.hrv-table .unit {
+  color: #555;
+  font-size: 0.75rem;
+  width: 40px;
+}
+
+/* Accelerometer */
+.accel-grid {
+  display: flex;
+  justify-content: space-around;
+  padding: 16px 12px;
+}
+
+.accel-item {
+  text-align: center;
+}
+
+.accel-axis {
+  display: block;
+  font-size: 0.75rem;
+  color: #888;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.accel-value {
+  font-family: 'Consolas', monospace;
+  font-size: 1rem;
+}
+
+/* Status */
+.status-grid {
+  padding: 12px;
+  font-size: 0.8rem;
+  font-family: 'Consolas', monospace;
+}
+
+.status-grid > div {
+  margin-bottom: 4px;
+}
+
+.status-label {
+  color: #666;
+}
+
+.error-log {
+  margin-top: 8px;
+  color: #ff5252;
+  font-size: 0.75rem;
+  max-height: 60px;
+  overflow-y: auto;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .control-bar {
+    flex-wrap: wrap;
+  }
+
+  .vital-hr .vital-value {
+    font-size: 1.6rem;
+  }
+}
