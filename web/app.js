@@ -1,6 +1,7 @@
 // ============================================================
 //  VSH101 Web BLE IMU Monitor
-//  僅輸出 IMU 加速度數據至 console，每 500ms 一次
+//  IMU 加速度數據顯示於前端頁面，每 500ms 更新一次
+//  BLE 連線相關 debug 訊息輸出至 DevTools console
 // ============================================================
 
 // --- Constants ---
@@ -34,7 +35,7 @@ const VSC_MODE_IDX_INVALID = 0x1F40;
 const VSC_MODE_IDX_MAX = 8000;
 
 const READ_INTERVAL_MS = 200;
-const IMU_LOG_INTERVAL_MS = 500;
+const IMU_DISPLAY_INTERVAL_MS = 500;
 const DATA_TIMEOUT_MS = 10000;
 
 // Info block float indices (IMU only; other fields skipped)
@@ -280,7 +281,10 @@ class UIController {
       btnConnect: document.getElementById('btn-connect'),
       btnDisconnect: document.getElementById('btn-disconnect'),
       btnStart: document.getElementById('btn-start'),
-      btnStop: document.getElementById('btn-stop')
+      btnStop: document.getElementById('btn-stop'),
+      accelX: document.getElementById('val-accel-x'),
+      accelY: document.getElementById('val-accel-y'),
+      accelZ: document.getElementById('val-accel-z')
     };
   }
 
@@ -300,6 +304,18 @@ class UIController {
     this.els.btnStart.disabled = active;
     this.els.btnStop.disabled = !active;
   }
+
+  updateIMU(x, y, z) {
+    this.els.accelX.textContent = x.toFixed(3);
+    this.els.accelY.textContent = y.toFixed(3);
+    this.els.accelZ.textContent = z.toFixed(3);
+  }
+
+  resetIMU() {
+    this.els.accelX.textContent = '--';
+    this.els.accelY.textContent = '--';
+    this.els.accelZ.textContent = '--';
+  }
 }
 
 // ============================================================
@@ -311,30 +327,29 @@ document.addEventListener('DOMContentLoaded', () => {
   const assembler = new PacketAssembler();
   const protocol = new VSH101Protocol(ble, assembler);
 
-  // IMU console logger — 每 500ms 輸出一次
-  let imuLogIntervalId = null;
-  const startImuLogging = () => {
-    if (imuLogIntervalId) return;
-    imuLogIntervalId = setInterval(() => {
+  // IMU 前端顯示 — 每 500ms 更新一次
+  let imuDisplayIntervalId = null;
+  const startImuDisplay = () => {
+    if (imuDisplayIntervalId) return;
+    imuDisplayIntervalId = setInterval(() => {
       if (!latestIMU.updated) return;
-      console.log(
-        `X=${latestIMU.x.toFixed(3)} Y=${latestIMU.y.toFixed(3)} Z=${latestIMU.z.toFixed(3)}`
-      );
-    }, IMU_LOG_INTERVAL_MS);
+      ui.updateIMU(latestIMU.x, latestIMU.y, latestIMU.z);
+    }, IMU_DISPLAY_INTERVAL_MS);
   };
-  const stopImuLogging = () => {
-    if (imuLogIntervalId) { clearInterval(imuLogIntervalId); imuLogIntervalId = null; }
+  const stopImuDisplay = () => {
+    if (imuDisplayIntervalId) { clearInterval(imuDisplayIntervalId); imuDisplayIntervalId = null; }
   };
 
   // Wire callbacks
   ble.onNotification = (event) => assembler.handleNotification(event);
   ble.onDisconnect = () => {
     protocol.stopMeasurement();
-    stopImuLogging();
+    stopImuDisplay();
     latestIMU.updated = false;
+    ui.resetIMU();
     ui.setConnectionState('disconnected');
     ui.setMeasuring(false);
-    console.warn('[APP] 裝置已斷線');
+    console.warn('[BLE] 裝置已斷線');
   };
 
   // Button handlers
@@ -351,23 +366,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-disconnect').addEventListener('click', async () => {
     await protocol.stopMeasurement();
-    stopImuLogging();
+    stopImuDisplay();
     await ble.disconnect();
     latestIMU.updated = false;
+    ui.resetIMU();
     ui.setConnectionState('disconnected');
     ui.setMeasuring(false);
   });
 
   document.getElementById('btn-start').addEventListener('click', async () => {
     latestIMU.updated = false;
+    ui.resetIMU();
     ui.setMeasuring(true);
     await protocol.startMeasurement();
-    startImuLogging();
+    startImuDisplay();
   });
 
   document.getElementById('btn-stop').addEventListener('click', async () => {
     await protocol.stopMeasurement();
-    stopImuLogging();
+    stopImuDisplay();
     ui.setMeasuring(false);
   });
 

@@ -21,6 +21,29 @@
     <button id="btn-stop" class="btn btn-stop" disabled>停止測量</button>
   </div>
 
+  <div class="dashboard">
+    <div class="panel panel-accel">
+      <div class="panel-header">加速度計 (g)</div>
+      <div class="accel-grid">
+        <div class="accel-item">
+          <span class="accel-axis">X</span>
+          <span id="val-accel-x" class="accel-value">--</span>
+          <span class="vital-unit">g</span>
+        </div>
+        <div class="accel-item">
+          <span class="accel-axis">Y</span>
+          <span id="val-accel-y" class="accel-value">--</span>
+          <span class="vital-unit">g</span>
+        </div>
+        <div class="accel-item">
+          <span class="accel-axis">Z</span>
+          <span id="val-accel-z" class="accel-value">--</span>
+          <span class="vital-unit">g</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>
