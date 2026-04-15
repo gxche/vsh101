@@ -3,13 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VSH101 ECG Monitor</title>
+  <title>VSH101 IMU Monitor</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Header -->
   <header class="header">
-    <h1>VSH101 ECG Monitor</h1>
+    <h1>VSH101 IMU Monitor</h1>
     <div class="header-right">
       <span id="conn-status" class="status-badge disconnected">未連線</span>
       <button id="btn-connect" class="btn btn-connect">連線裝置</button>
@@ -17,65 +16,14 @@
     </div>
   </header>
 
-  <!-- Control Bar -->
   <div class="control-bar">
     <button id="btn-start" class="btn btn-start" disabled>開始測量</button>
     <button id="btn-stop" class="btn btn-stop" disabled>停止測量</button>
-    <span class="elapsed-label">測量時間：</span>
-    <span id="elapsed-time" class="elapsed-time">00:00:00</span>
   </div>
 
-  <!-- Dashboard -->
   <div class="dashboard">
-    <!-- ECG Canvas -->
-    <div class="panel panel-ecg">
-      <div class="panel-header">ECG 波形</div>
-      <canvas id="ecg-canvas"></canvas>
-    </div>
-
-    <!-- Vital Signs -->
-    <div class="panel panel-vitals">
-      <div class="panel-header">生理數值</div>
-      <div class="vital-grid">
-        <div class="vital-item vital-hr">
-          <div class="vital-label">心率</div>
-          <div class="vital-value"><span id="val-hr">--</span> <span class="vital-unit">BPM</span></div>
-        </div>
-        <div class="vital-item">
-          <div class="vital-label">溫度</div>
-          <div class="vital-value"><span id="val-temp">--</span> <span class="vital-unit">°C</span></div>
-        </div>
-        <div class="vital-item">
-          <div class="vital-label">電極狀態</div>
-          <div class="vital-value"><span id="val-leadoff" class="lead-ok">正常</span></div>
-        </div>
-        <div class="vital-item">
-          <div class="vital-label">電量</div>
-          <div class="battery-bar-container">
-            <div id="battery-bar" class="battery-bar" style="width: 0%"></div>
-          </div>
-          <div class="vital-value"><span id="val-battery">--</span><span class="vital-unit">%</span></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- HRV -->
-    <div class="panel panel-hrv">
-      <div class="panel-header">HRV 心率變異</div>
-      <table class="hrv-table">
-        <tr><td>SDNN</td><td id="val-sdnn">--</td><td class="unit">ms</td></tr>
-        <tr><td>RMSSD</td><td id="val-rmssd">--</td><td class="unit">ms</td></tr>
-        <tr><td>NN50</td><td id="val-nn50">--</td><td class="unit"></td></tr>
-        <tr><td>RR</td><td id="val-rr">--</td><td class="unit">ms</td></tr>
-        <tr><td>VLF</td><td id="val-vlf">--</td><td class="unit">ms²</td></tr>
-        <tr><td>LF</td><td id="val-lf">--</td><td class="unit">ms²</td></tr>
-        <tr><td>HF</td><td id="val-hf">--</td><td class="unit">ms²</td></tr>
-      </table>
-    </div>
-
-    <!-- Accelerometer -->
     <div class="panel panel-accel">
-      <div class="panel-header">加速度計</div>
+      <div class="panel-header">加速度計 (g)</div>
       <div class="accel-grid">
         <div class="accel-item">
           <span class="accel-axis">X</span>
@@ -92,17 +40,6 @@
           <span id="val-accel-z" class="accel-value">--</span>
           <span class="vital-unit">g</span>
         </div>
-      </div>
-    </div>
-
-    <!-- Status -->
-    <div class="panel panel-status">
-      <div class="panel-header">狀態</div>
-      <div class="status-grid">
-        <div><span class="status-label">封包：</span><span id="val-packets">0</span></div>
-        <div><span class="status-label">片段：</span><span id="val-fragments">0</span></div>
-        <div><span class="status-label">wId：</span><span id="val-wid">0</span></div>
-        <div id="error-log" class="error-log"></div>
       </div>
     </div>
   </div>
