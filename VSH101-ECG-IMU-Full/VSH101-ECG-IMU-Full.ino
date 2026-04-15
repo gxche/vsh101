@@ -328,7 +328,6 @@ void parseAssembled(const uint8_t* buf, size_t len) {
 
     // 檢查 ACK 或 NACK
     if (buf[2] != 0x41) {
-      Serial.printf("[解析] NACK (0x%02X) wId=%d\n", buf[2], currentWId);
       return;
     }
 
@@ -344,8 +343,6 @@ void parseAssembled(const uint8_t* buf, size_t len) {
 
     // 索引不符 — 裝置返回了不同的索引
     if (dataIdx != currentWId) {
-      Serial.printf("[解析] 索引不符: 預期=%d 實際=%d，同步至裝置\n",
-                    currentWId, dataIdx);
       currentWId = dataIdx;  // 同步至裝置的索引
     }
 
@@ -373,14 +370,12 @@ void parseAssembled(const uint8_t* buf, size_t len) {
     }
 
     // ACK 但資料不完整（只收到 8 bytes 標頭）
-    Serial.printf("[解析] ACK 但資料不完整: idx=%d len=%d 實收=%d\n",
-                  dataIdx, dataLen, (int)len);
+    (void)dataLen;
     return;
   }
 
   // --- 方法 B：非 ACK 格式，嘗試直接解析 ---
   if (len >= TYPE1_MISO_LEN) {
-    Serial.printf("[解析B] 非 ACK 格式: %d bytes\n", (int)len);
     const uint8_t* ecg  = &buf[0];
     const uint8_t* info = &buf[TYPE1_ECG_SIZE];
     int nSamples = TYPE1_ECG_SIZE / 4;
@@ -399,7 +394,6 @@ void parseAssembled(const uint8_t* buf, size_t len) {
 
   // --- 方法 C：小封包 ---
   if (len >= 32) {
-    Serial.printf("[解析C] 小封包: %d bytes\n", (int)len);
     session.utcTimestamp = readU32(&buf[0]);
     if (len > 18) { session.hrFloat = (float)buf[16]; session.battSoc = (float)buf[17]; }
     if (len >= 28) session.ecgMv = safeReadFloat(&buf[24]);
@@ -414,9 +408,6 @@ void parseAssembled(const uint8_t* buf, size_t len) {
     session.lastDataTimeMs = millis();
     return;
   }
-
-  if (len > 0)
-    Serial.printf("[解析] 無法解析: %d bytes\n", (int)len);
 }
 
 /* ============================================================
@@ -468,13 +459,11 @@ static void notifyCallback(
 
 class MyClientCallbacks : public BLEClientCallbacks {
   void onConnect(BLEClient* c) override {
-    Serial.println("[BLE] 已連線");
   }
   void onDisconnect(BLEClient* c) override {
     connected = false;
     appState = STATE_DISCONNECTED;
     disconnectTimeMs = millis();
-    Serial.println("[BLE] 斷線，準備重連...");
   }
 };
 
@@ -490,7 +479,6 @@ class MyScanCallbacks : public BLEAdvertisedDeviceCallbacks {
     #endif
     if (!matched && name.indexOf(DEVICE_NAME_FILTER) >= 0) matched = true;
     if (matched) {
-      Serial.printf("[BLE] 找到: %s (%s)\n", name.c_str(), addr.c_str());
       if (targetDevice) delete targetDevice;
       targetDevice = new BLEAdvertisedDevice(dev);
       deviceFound = true;
@@ -507,7 +495,6 @@ void sendStart() {
   if(!rxChar) return;
   rxChar->writeValue((uint8_t*)CMD_START, 20, true);
   currentWId = 0;  // 重設讀取索引
-  Serial.println("[CMD] START (wId 重設為 0)");
 }
 
 void sendRead() {
@@ -521,7 +508,6 @@ void sendRead() {
 void sendStop() {
   if(!rxChar) return;
   rxChar->writeValue((uint8_t*)CMD_STOP, 20, true);
-  Serial.println("[CMD] STOP");
 }
 
 /* ============================================================
@@ -530,31 +516,27 @@ void sendStop() {
 
 bool connectToDevice() {
   if (!targetDevice) return false;
-  Serial.println("[BLE] 連線中...");
 
   if (!bleClient) {
     bleClient = BLEDevice::createClient();
     bleClient->setClientCallbacks(new MyClientCallbacks());
   }
   if (!bleClient->connect(targetDevice)) {
-    Serial.println("[BLE] 連線失敗");
     return false;
   }
 
   bleClient->setMTU(517);
-  Serial.printf("[BLE] MTU=%d\n", bleClient->getMTU());
 
   BLERemoteService* svc = bleClient->getService(serviceUUID);
-  if (!svc) { Serial.println("[BLE] 服務未找到"); bleClient->disconnect(); return false; }
+  if (!svc) { bleClient->disconnect(); return false; }
 
   txChar = svc->getCharacteristic(txUUID);
   rxChar = svc->getCharacteristic(rxUUID);
-  if (!txChar || !rxChar) { Serial.println("[BLE] 特徵未找到"); bleClient->disconnect(); return false; }
+  if (!txChar || !rxChar) { bleClient->disconnect(); return false; }
 
   BLERemoteDescriptor* desc = txChar->getDescriptor(BLEUUID((uint16_t)0x2902));
   if (desc) { uint8_t on[]={0x01,0x00}; desc->writeValue(on,2,true); }
   txChar->registerForNotify(notifyCallback);
-  Serial.println("[BLE] Notify 已啟用");
 
   rxBufLen = 0;
   currentWId = 0;
@@ -570,7 +552,6 @@ bool connectToDevice() {
 
 void startScan() {
   deviceFound = false;
-  Serial.println("[BLE] 掃描中...");
   if (!bleScan) {
     bleScan = BLEDevice::getScan();
     bleScan->setAdvertisedDeviceCallbacks(new MyScanCallbacks());
@@ -595,77 +576,8 @@ String timeStr() {
  * ============================================================ */
 
 void displayReport() {
-  Serial.println();
-  Serial.println("========================================");
-  Serial.printf("[%s] VSH101 即時監測報告\n", timeStr().c_str());
-  Serial.println("========================================");
-
-  if (session.running)
-    Serial.printf("量測狀態: 執行中 | 已運行: %s\n", session.elapsedStr().c_str());
-  else
-    Serial.println("量測狀態: 停止");
-  Serial.printf("封包: %u (片段: %u)\n", session.packetCount, session.fragmentCount);
-
-  Serial.println("----------------------------------------");
-
-  Serial.printf("ECG:     %.3f mV (10mm/mV)\n", session.ecgMv);
-  Serial.printf("心律:    %.0f BPM\n", session.hrFloat);
-  if (session.hrStats.hasData())
-    Serial.printf("  最小:%.0f | 平均:%.0f | 最大:%.0f\n",
-      session.hrStats.minVal, session.hrStats.getAvg(), session.hrStats.maxVal);
-
-  Serial.printf("心拍:    共 %u 次\n", session.beatStats.totalBeats);
-  if (session.beatStats.totalBeats > 0)
-    Serial.printf("  正常:%u(%.1f%%) | 異常:%u(%.1f%%)\n",
-      session.beatStats.normalBeats, session.beatStats.normalPct(),
-      session.beatStats.abnormalBeats, session.beatStats.abnormalPct());
-
-  Serial.println("----------------------------------------");
-
-  if (session.tempStats.hasData()) {
-    Serial.printf("溫度:    %.1f C\n", session.tempC);
-    Serial.printf("  最小:%.1f | 平均:%.1f | 最高:%.1f\n",
-      session.tempStats.minVal, session.tempStats.getAvg(), session.tempStats.maxVal);
-  } else {
-    Serial.println("溫度:    等待資料...");
-  }
-
-  if (session.battSoc > 0 && session.battSoc <= 100) {
-    Serial.printf("電量:    %.0f %%\n", session.battSoc);
-    if (session.batteryStats.hasData())
-      Serial.printf("  最小:%.0f | 平均:%.0f | 最高:%.0f\n",
-        session.batteryStats.minVal, session.batteryStats.getAvg(), session.batteryStats.maxVal);
-    if (session.battSec > 0)
-      Serial.printf("  預估剩餘: %.0f 秒 (%.1f 小時)\n", session.battSec, session.battSec / 3600.0f);
-  } else {
-    Serial.println("電量:    等待資料...");
-  }
-
-  Serial.println("----------------------------------------");
-
-  Serial.printf("加速度(g):  X=%.3f Y=%.3f Z=%.3f\n",
+  Serial.printf("X=%.3f Y=%.3f Z=%.3f\n",
     session.accelX, session.accelY, session.accelZ);
-
-  Serial.println("----------------------------------------");
-
-  Serial.printf("Lead-off: %s\n",
-    session.leadOff > 0 ? "電極脫落" : "電極正常");
-
-  if (session.atrCode > 0)
-    Serial.printf("心律不整: 代碼=%d\n", session.atrCode);
-
-  if (connected && bleClient) {
-    Serial.printf("BLE: 已連線 | MTU:%d", bleClient->getMTU());
-    int rssi = bleClient->getRssi();
-    if (rssi!=0) Serial.printf(" | RSSI:%d dBm", rssi);
-    Serial.println();
-  } else {
-    Serial.println("BLE: 未連線");
-  }
-
-  Serial.printf("UTC:%u | wId:%d\n",
-    session.utcTimestamp, currentWId);
-  Serial.println("========================================");
 }
 
 /* ============================================================
@@ -673,11 +585,6 @@ void displayReport() {
  * ============================================================ */
 
 void handleInit() {
-  Serial.println("\n========================================");
-  Serial.println("  VSH101 ECG/IMU 完整監測 v6");
-  Serial.println("  正確 ECG/Info 分界 + 電池顯示");
-  Serial.printf("  過濾: %s | READ:%dms\n", DEVICE_NAME_FILTER, READ_INTERVAL_MS);
-  Serial.println("========================================\n");
   BLEDevice::init("ESP32_ECG_Monitor");
   session.reset();
   startScan();
@@ -687,11 +594,11 @@ void handleInit() {
 void handleScanning() {
   if (deviceFound) { appState = STATE_CONNECTING; return; }
   static unsigned long t = 0;
-  if (millis()-t > 12000) { t=millis(); Serial.println("[BLE] 重新掃描..."); startScan(); }
+  if (millis()-t > 12000) { t=millis(); startScan(); }
 }
 
 void handleConnecting() {
-  if (connectToDevice()) { appState = STATE_RUNNING; Serial.println("[狀態] 量測中"); }
+  if (connectToDevice()) { appState = STATE_RUNNING; }
   else { appState = STATE_DISCONNECTED; disconnectTimeMs = millis(); }
 }
 
@@ -708,7 +615,6 @@ void handleRunning() {
   }
 
   if (session.lastDataTimeMs>0 && (millis()-session.lastDataTimeMs)>DATA_TIMEOUT_MS) {
-    Serial.println("[警告] 超時，重啟量測...");
     sendStop(); delay(200); sendStart();
     session.lastDataTimeMs = millis();
   }
@@ -719,7 +625,6 @@ void handleRunning() {
 void handleDisconnected() {
   session.running = false;
   if (millis()-disconnectTimeMs < reconnectDelayMs) return;
-  Serial.printf("[BLE] 重連（延遲 %lu ms）...\n", reconnectDelayMs);
   reconnectDelayMs = min(reconnectDelayMs*2, (unsigned long)RECONNECT_MAX_MS);
   #if RESET_STATS_ON_RECONNECT
     session.reset();
